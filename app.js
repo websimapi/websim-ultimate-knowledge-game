@@ -462,6 +462,12 @@ function QuestionCreator({ room, creatorUsername, setFeedback, setError }) {
     setError(null);
     
     try {
+      // Get existing questions
+      const existingQuestions = room.collection('question').getList();
+      const existingQuestionsText = existingQuestions.map(q => 
+        `Question: ${q.question}\nA: ${q.option_a}\nB: ${q.option_b}\nC: ${q.option_c}\nD: ${q.option_d}\nCorrect: ${q.correct_option}`
+      ).join('\n\n');
+      
       const completion = await websim.chat.completions.create({
         messages: [
           {
@@ -477,7 +483,10 @@ function QuestionCreator({ room, creatorUsername, setFeedback, setError }) {
               "correct_option": "The letter of the correct option (A, B, C, or D)",
               "category": "One of: general, science, history, geography, entertainment, sports, technology"
             }
-            Make sure one and only one option is correct, and the question is challenging but fair.`
+            Make sure one and only one option is correct, and the question is challenging but fair.
+            
+            IMPORTANT: Here are the existing questions in the database. DO NOT create a duplicate or very similar question:
+            ${existingQuestionsText}`
           },
           {
             role: "user",
