@@ -134,6 +134,28 @@ function GameBoard({ room, gameState, setGameState, setFeedback, setError, peers
     room.collection('answer').getList
   );
   
+  // Check if game should end when no other players
+  React.useEffect(() => {
+    const playerCount = Object.keys(peers).length;
+    
+    // If a game is in progress but there's only one player (just the current user)
+    if ((gameState === 'playing' || gameState === 'reveal') && playerCount <= 1 && gameStates.length > 0) {
+      // End the current game automatically
+      const endGame = async () => {
+        try {
+          await room.collection('gameState').update(gameStates[0].id, {
+            state: 'ended'
+          });
+          setFeedback("Game ended because there aren't enough players.");
+        } catch (error) {
+          console.error("Error ending game:", error);
+        }
+      };
+      
+      endGame();
+    }
+  }, [peers, gameState, gameStates]);
+  
   // Process game state changes
   React.useEffect(() => {
     if (gameStates.length > 0) {
