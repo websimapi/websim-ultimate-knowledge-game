@@ -526,6 +526,12 @@ function QuestionCreator({ room, creatorUsername, setFeedback, setError }) {
     setGeneratedQuestion(null);
   };
   
+  // Show existing questions in database
+  const questions = React.useSyncExternalStore(
+    room.collection('question').subscribe,
+    room.collection('question').getList
+  );
+  
   // Submit a new question
   const submitQuestion = async (e) => {
     e.preventDefault();
@@ -536,6 +542,7 @@ function QuestionCreator({ room, creatorUsername, setFeedback, setError }) {
     }
     
     try {
+      // Store question in database
       await room.collection('question').create({
         question: question,
         option_a: optionA,
@@ -544,7 +551,8 @@ function QuestionCreator({ room, creatorUsername, setFeedback, setError }) {
         option_d: optionD,
         correct_option: correctOption.toUpperCase(),
         category: category,
-        created_by: creatorUsername
+        created_by: creatorUsername,
+        created_at: new Date().toISOString()
       });
       
       // Clear form
@@ -730,6 +738,22 @@ function QuestionCreator({ room, creatorUsername, setFeedback, setError }) {
         
         <button type="submit">Create Question</button>
       </form>
+      
+      <div className="existing-questions">
+        <h3>Existing Questions ({questions.length})</h3>
+        {questions.length > 0 ? (
+          <ul className="question-list">
+            {questions.map(q => (
+              <li key={q.id} className="question-item">
+                <strong>{q.question}</strong>
+                <p><span className="category-tag">{q.category}</span> Added by: {q.created_by}</p>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>No questions yet. Be the first to add one!</p>
+        )}
+      </div>
     </div>
   );
 }
