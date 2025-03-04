@@ -446,6 +446,77 @@ function QuestionCreator({ room, creatorUsername, setFeedback, setError }) {
   const [correctOption, setCorrectOption] = React.useState('a');
   const [category, setCategory] = React.useState('general');
   
+  // AI Question Generation
+  const [aiPrompt, setAiPrompt] = React.useState('');
+  const [isGenerating, setIsGenerating] = React.useState(false);
+  const [generatedQuestion, setGeneratedQuestion] = React.useState(null);
+  
+  // Generate a question using the AI
+  const generateQuestion = async () => {
+    if (!aiPrompt.trim()) {
+      setError("Please enter a topic or question idea");
+      return;
+    }
+    
+    setIsGenerating(true);
+    setError(null);
+    
+    try {
+      const completion = await websim.chat.completions.create({
+        messages: [
+          {
+            role: "system",
+            content: `You are a quiz question creator. Create a multiple-choice trivia question with 4 options (A, B, C, D) based on the provided topic or request.
+            Respond directly with JSON, following this JSON schema, and no other text:
+            {
+              "question": "The full text of the question",
+              "option_a": "First option",
+              "option_b": "Second option",
+              "option_c": "Third option",
+              "option_d": "Fourth option",
+              "correct_option": "The letter of the correct option (A, B, C, or D)",
+              "category": "One of: general, science, history, geography, entertainment, sports, technology"
+            }
+            Make sure one and only one option is correct, and the question is challenging but fair.`
+          },
+          {
+            role: "user",
+            content: aiPrompt
+          }
+        ],
+        json: true
+      });
+      
+      const result = JSON.parse(completion.content);
+      setGeneratedQuestion(result);
+      setIsGenerating(false);
+    } catch (error) {
+      console.error("Error generating question:", error);
+      setError("Failed to generate question. Please try again.");
+      setIsGenerating(false);
+    }
+  };
+  
+  // Use the generated question
+  const useGeneratedQuestion = () => {
+    if (!generatedQuestion) return;
+    
+    setQuestion(generatedQuestion.question);
+    setOptionA(generatedQuestion.option_a);
+    setOptionB(generatedQuestion.option_b);
+    setOptionC(generatedQuestion.option_c);
+    setOptionD(generatedQuestion.option_d);
+    setCorrectOption(generatedQuestion.correct_option.toLowerCase());
+    setCategory(generatedQuestion.category);
+    
+    setGeneratedQuestion(null);
+  };
+  
+  // Discard the generated question
+  const discardGeneratedQuestion = () => {
+    setGeneratedQuestion(null);
+  };
+  
   // Submit a new question
   const submitQuestion = async (e) => {
     e.preventDefault();
@@ -487,6 +558,57 @@ function QuestionCreator({ room, creatorUsername, setFeedback, setError }) {
   return (
     <div className="create-question-form card">
       <h2>Create a New Question</h2>
+      
+      <div className="ai-question-form">
+        <h3>Generate Question with AI</h3>
+        <p>Enter a topic or specific question idea to generate a complete question:</p>
+        
+        <div className="ai-prompt">
+          <textarea
+            value={aiPrompt}
+            onChange={e => setAiPrompt(e.target.value)}
+            placeholder="E.g., 'A question about ancient Egypt' or 'Create a difficult science question about black holes'"
+            disabled={isGenerating}
+          ></textarea>
+          <button 
+            onClick={generateQuestion}
+            disabled={isGenerating}
+          >
+            Generate
+          </button>
+        </div>
+        
+        {isGenerating && (
+          <div className="ai-loading">
+            <div className="spinner"></div>
+            <p>Generating your question...</p>
+          </div>
+        )}
+        
+        {generatedQuestion && (
+          <div className="generated-question">
+            <h4>Generated Question:</h4>
+            <p><strong>Question:</strong> {generatedQuestion.question}</p>
+            <p><strong>A:</strong> {generatedQuestion.option_a}</p>
+            <p><strong>B:</strong> {generatedQuestion.option_b}</p>
+            <p><strong>C:</strong> {generatedQuestion.option_c}</p>
+            <p><strong>D:</strong> {generatedQuestion.option_d}</p>
+            <p><strong>Correct Answer:</strong> {generatedQuestion.correct_option}</p>
+            <p><strong>Category:</strong> {generatedQuestion.category.charAt(0).toUpperCase() + generatedQuestion.category.slice(1)}</p>
+            
+            <div className="question-actions">
+              <button onClick={useGeneratedQuestion}>Use This Question</button>
+              <button onClick={discardGeneratedQuestion}>Discard</button>
+            </div>
+          </div>
+        )}
+      </div>
+      
+      <div className="or-divider">
+        <span>OR</span>
+      </div>
+      
+      <h3>Create Question Manually</h3>
       <form onSubmit={submitQuestion}>
         <div className="form-group">
           <label htmlFor="question">Question:</label>
@@ -658,4 +780,3 @@ function Leaderboard({ room, setError }) {
 
 // Render the app
 ReactDOM.render(<App />, document.getElementById('app'));
-
