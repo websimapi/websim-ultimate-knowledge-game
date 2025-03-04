@@ -507,18 +507,30 @@ function QuestionCreator({ room, creatorUsername, setFeedback, setError }) {
   };
   
   // Use the generated question
-  const useGeneratedQuestion = () => {
+  const useGeneratedQuestion = async () => {
     if (!generatedQuestion) return;
     
-    setQuestion(generatedQuestion.question);
-    setOptionA(generatedQuestion.option_a);
-    setOptionB(generatedQuestion.option_b);
-    setOptionC(generatedQuestion.option_c);
-    setOptionD(generatedQuestion.option_d);
-    setCorrectOption(generatedQuestion.correct_option.toLowerCase());
-    setCategory(generatedQuestion.category);
-    
-    setGeneratedQuestion(null);
+    try {
+      // Store question directly in database
+      await room.collection('question').create({
+        question: generatedQuestion.question,
+        option_a: generatedQuestion.option_a,
+        option_b: generatedQuestion.option_b,
+        option_c: generatedQuestion.option_c,
+        option_d: generatedQuestion.option_d,
+        correct_option: generatedQuestion.correct_option.toUpperCase(),
+        category: generatedQuestion.category,
+        created_by: creatorUsername,
+        created_at: new Date().toISOString()
+      });
+      
+      setFeedback("Question created successfully!");
+      setTimeout(() => setFeedback(''), 3000);
+      setGeneratedQuestion(null);
+    } catch (error) {
+      console.error("Error saving generated question:", error);
+      setError("Failed to save generated question. Please try again.");
+    }
   };
   
   // Discard the generated question
