@@ -114,6 +114,7 @@ function GameBoard({ room, gameState, setGameState, setFeedback, setError, peers
   const [gameEnded, setGameEnded] = React.useState(false);
   const [timeLeft, setTimeLeft] = React.useState(0);
   const [timerInterval, setTimerInterval] = React.useState(null);
+  const [hasSubmittedAnswer, setHasSubmittedAnswer] = React.useState(false);
   
   // Subscribe to questions collection
   const questions = React.useSyncExternalStore(
@@ -277,10 +278,11 @@ function GameBoard({ room, gameState, setGameState, setFeedback, setError, peers
   
   // Submit an answer
   const submitAnswer = async (option) => {
-    if (gameState !== 'playing' || !currentQuestion) return;
+    if (gameState !== 'playing' || !currentQuestion || hasSubmittedAnswer) return;
     
     try {
       setSelectedOption(option);
+      setHasSubmittedAnswer(true);
       
       // Submit answer
       await room.collection('answer').create({
@@ -290,7 +292,7 @@ function GameBoard({ room, gameState, setGameState, setFeedback, setError, peers
         username: room.party.client.username
       });
       
-      setFeedback("Answer submitted!");
+      setFeedback("Answer submitted! Waiting for other players...");
       
       // Check if all players have answered
       const questionAnswers = answers.filter(a => a.question_id === currentQuestion);
@@ -306,6 +308,7 @@ function GameBoard({ room, gameState, setGameState, setFeedback, setError, peers
     } catch (error) {
       console.error("Error submitting answer:", error);
       setError("Failed to submit answer. Please try again.");
+      setHasSubmittedAnswer(false);
     }
   };
   
@@ -374,6 +377,14 @@ function GameBoard({ room, gameState, setGameState, setFeedback, setError, peers
     }
   };
   
+  // Reset state for new question
+  React.useEffect(() => {
+    if (gameState === 'playing') {
+      setSelectedOption(null);
+      setHasSubmittedAnswer(false);
+    }
+  }, [currentQuestion, gameState]);
+  
   // Render the question and options
   const questionData = getCurrentQuestionData();
   
@@ -408,12 +419,16 @@ function GameBoard({ room, gameState, setGameState, setFeedback, setError, peers
               <div 
                 key={option}
                 className={`option ${selectedOption === option ? 'selected' : ''} ${gameState === 'reveal' && option === correctOption ? 'correct' : ''} ${gameState === 'reveal' && selectedOption === option && option !== correctOption ? 'incorrect' : ''}`}
-                onClick={() => gameState === 'playing' && submitAnswer(option)}
+                onClick={() => gameState === 'playing' && !hasSubmittedAnswer && submitAnswer(option)}
               >
                 <strong>{option}:</strong> {questionData[`option_${option.toLowerCase()}`]}
               </div>
             ))}
           </div>
+          
+          {gameState === 'playing' && hasSubmittedAnswer && (
+            <p className="feedback">Your answer has been submitted. Waiting for other players...</p>
+          )}
         </div>
       )}
       
